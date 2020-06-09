@@ -35,7 +35,7 @@ const unstyled = css`
 const ToolbarButton = styled.button`
   ${unstyled}
 
-  font-family: 'Arvo', sans-serif !important;
+  font-family: 'Arvo', serif !important;
   cursor: pointer;
 
   border-image-source: url(${button});
