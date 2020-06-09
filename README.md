@@ -1,4 +1,4 @@
-# @zhouzi/cra-template
+# gwent-vibe
 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg)](./CODE_OF_CONDUCT.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
@@ -10,15 +10,7 @@
 
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
-
-Here are a few things you might want to do right away:
-
-- [ ] Update the README.md.
-- [ ] Update the LICENSE's date and owner.
-- [ ] Update the CODE_OF_CONDUCT.md's email contact (replace hello@gabinaureche.com with your email address).
-- [ ] Install the [All Contributors bot](https://allcontributors.org/docs/en/bot/installation).
-- [ ] Update .all-contributorsrc.
+Gwent background vibe.
 
 ## Installation
 
