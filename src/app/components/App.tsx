@@ -1,181 +1,225 @@
 import * as React from "react";
-import styled, { ThemeProvider, css } from "styled-components";
-import { useSpring, animated } from "react-spring";
+import { Draft } from "immer";
+import { useImmer } from "use-immer";
+import styled, { ThemeProvider } from "styled-components";
+import {
+  FiSettings,
+  FiPlay,
+  FiSquare,
+  FiSkipForward,
+  FiSkipBack,
+  FiRewind,
+} from "react-icons/fi";
 import { themeCSSVariables } from "design/theme";
-import { GlobalStyle, FireSparks, Container } from "design/components";
-import button from "design/assets/button@2x.png";
+import {
+  GlobalStyle,
+  FireSparks,
+  IconButton,
+  Caption,
+  FormGroup,
+  Input,
+} from "design/components";
+import { AppState, createSlide, Slide } from "app/AppState";
+import { Scene } from "./Scene";
+import { InputFile } from "./InputFile";
+import { SettingsBlur } from "./SettingsBlur";
 
-const Image = styled(animated.img)`
-  max-width: 80%;
-  height: auto;
-`;
-
-const Toolbar = styled.aside`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  padding: 1rem 2rem;
+const Container = styled.main`
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-`;
+  min-height: 100vh;
 
-const unstyled = css`
-  font: inherit;
-  color: inherit;
-  border: none;
-  background: transparent;
-  text-decoration: none;
-  padding: 0;
-  margin: 0;
-`;
+  & > *:first-child {
+    flex: 1;
+  }
 
-const ToolbarButton = styled.button`
-  ${unstyled}
-
-  font-family: 'Arvo', serif !important;
-  cursor: pointer;
-
-  border-image-source: url(${button});
-  border-width: 0 12px 0 12px;
-  border-style: solid;
-  border-image-slice: 0 12 0 12 fill;
-  border-image-outset: 0;
-  height: 112px;
-  display: inline-flex;
-  padding: 0 60px;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto -12px;
-  width: 424px;
-
-  text-transform: uppercase;
-  color: #000;
-  letter-spacing: -0.6px;
-  text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.63),
-    0 1px 12px rgba(255, 255, 255, 0.63);
-  font-family: HalisGR-Bold, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-`;
-
-const ToolbarLink = styled.button`
-  ${unstyled}
-
-  font-size: 0.8rem;
-`;
-
-const ToolbarLabel = styled.label`
-  display: block;
-  margin-bottom: 1rem;
-
-  &:last-child {
-    margin-bottom: 0;
+  & > *:last-child {
+    position: relative;
+    z-index: 1;
   }
 `;
 
-const ToolbarInput = styled.input`
-  display: block;
-  width: 100%;
+const Toolbar = styled.aside`
+  display: flex;
+  background-color: rgba(0, 0, 0, 0.25);
+`;
+
+const ToolbarButtons = styled.ul`
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+`;
+
+const ToolbarButtonsItem = styled.li``;
+
+const ToolbarButtonsPagination = styled(Caption).attrs({ as: "li" })`
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+`;
+
+const ToolbarSettings = styled.div`
+  position: relative;
+  padding: 1rem;
+  min-width: 14rem;
 `;
 
 export function App() {
-  const [src, setSrc] = React.useState<string | null>(null);
-  const [blur, setBlur] = React.useState(100);
-  const [duration, setDuration] = React.useState(15000);
-  const [isRevealed, setIsRevealed] = React.useState(false);
-  const [isSettingsVisible, setIsSettingsVisible] = React.useState(false);
-
-  const props = useSpring({
-    filter: isRevealed ? "blur(0px)" : `blur(${blur}px)`,
-    from: { filter: `blur(${blur}px)` },
-    config: { duration: isRevealed ? duration : 0 },
+  const [state, updateState] = useImmer<AppState>({
+    expanded: false,
+    status: "initial",
+    slides: [createSlide()],
+    currentSlideIndex: 0,
   });
+  const currentSlide = state.slides[state.currentSlideIndex];
+
+  const onChangeImage = React.useCallback(
+    (image: HTMLImageElement) => {
+      updateState((draft) => {
+        draft.slides.forEach((slide) => {
+          if (slide.id === currentSlide.id) {
+            slide.originalImage = image as Draft<HTMLImageElement>;
+            slide.image = image as Draft<HTMLImageElement>;
+          }
+        });
+      });
+    },
+    [currentSlide.id, updateState]
+  );
 
   return (
     <ThemeProvider theme={themeCSSVariables}>
       <GlobalStyle />
       <FireSparks />
       <Container>
-        {src == null ? (
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
+        <Scene
+          status={state.status}
+          slide={currentSlide}
+          onOver={() => {
+            updateState((draft) => {
+              draft.status = "over";
+            });
+          }}
+        />
+        <Toolbar>
+          <ToolbarButtons>
+            <ToolbarButtonsItem>
+              <IconButton
+                onClick={() => {
+                  updateState((draft) => {
+                    draft.expanded = !draft.expanded;
+                  });
+                }}
+                disabled={state.status !== "initial"}
+              >
+                <FiSettings />
+              </IconButton>
+            </ToolbarButtonsItem>
+            <ToolbarButtonsItem>
+              <IconButton
+                onClick={() => {
+                  updateState((draft) => {
+                    draft.status =
+                      draft.status === "initial" ? "playing" : "initial";
 
-              if (file == null) {
-                return;
-              }
+                    if (draft.status !== "initial") {
+                      draft.expanded = false;
+                    }
+                  });
+                }}
+                disabled={
+                  currentSlide.originalImage == null ||
+                  currentSlide.image == null
+                }
+              >
+                {state.status === "playing" && <FiSquare />}
+                {state.status === "over" && <FiRewind />}
+                {state.status === "initial" && <FiPlay />}
+              </IconButton>
+            </ToolbarButtonsItem>
+            <ToolbarButtonsItem>
+              <IconButton
+                onClick={() => {
+                  updateState((draft) => {
+                    if (draft.currentSlideIndex <= 0) {
+                      return;
+                    }
 
-              const reader = new FileReader();
+                    draft.status = "initial";
+                    draft.currentSlideIndex -= 1;
+                  });
+                }}
+                disabled={state.currentSlideIndex <= 0}
+              >
+                <FiSkipBack />
+              </IconButton>
+            </ToolbarButtonsItem>
+            <ToolbarButtonsItem>
+              <IconButton
+                onClick={() => {
+                  updateState((draft) => {
+                    draft.status = "initial";
+                    draft.currentSlideIndex += 1;
 
-              reader.addEventListener("load", (event) => {
-                setSrc(event.target!.result as string);
-              });
-
-              reader.readAsDataURL(file);
-            }}
-          />
-        ) : (
-          <>
-            <Image src={src} alt="" style={props} />
-            {!isRevealed && (
-              <Toolbar>
-                <ToolbarLabel as="div">
-                  <ToolbarButton
-                    type="button"
-                    onClick={() => setIsRevealed(true)}
-                  >
-                    Révéler
-                  </ToolbarButton>
-                </ToolbarLabel>
-                <ToolbarLink
-                  type="button"
-                  onClick={() =>
-                    setIsSettingsVisible(
-                      (currentIsSettingsVisible) => !currentIsSettingsVisible
-                    )
-                  }
-                >
-                  {isSettingsVisible
-                    ? "Masquer les paramètres"
-                    : "Afficher les paramètres"}
-                </ToolbarLink>
-                {isSettingsVisible && (
-                  <>
-                    <ToolbarLabel>
-                      Durée (secondes):
-                      <ToolbarInput
-                        type="number"
-                        value={duration / 1000}
-                        onChange={(event) =>
-                          setDuration(Number(event.target.value) * 1000)
+                    if (draft.currentSlideIndex >= draft.slides.length) {
+                      draft.slides.push(createSlide() as Draft<Slide>);
+                    }
+                  });
+                }}
+              >
+                <FiSkipForward />
+              </IconButton>
+            </ToolbarButtonsItem>
+            <ToolbarButtonsPagination>
+              {state.currentSlideIndex + 1}/{state.slides.length}
+            </ToolbarButtonsPagination>
+          </ToolbarButtons>
+          {state.expanded && (
+            <ToolbarSettings>
+              <FormGroup>
+                <Caption>Image</Caption>
+                <InputFile onChange={onChangeImage} />
+              </FormGroup>
+              <FormGroup>
+                <Caption>Effets</Caption>
+                <SettingsBlur
+                  effects={currentSlide.effects}
+                  onChange={(updateEffects) => {
+                    updateState((draft) => {
+                      draft.slides.forEach((slide) => {
+                        if (slide.id === currentSlide.id) {
+                          updateEffects(slide.effects);
                         }
-                        min="1"
-                      />
-                    </ToolbarLabel>
-                    <ToolbarLabel>
-                      Flou:
-                      <ToolbarInput
-                        type="range"
-                        step="1"
-                        min="0"
-                        max="100"
-                        onChange={(event) => {
-                          setBlur(Number(event.target.value));
-                        }}
-                        value={blur}
-                      />
-                    </ToolbarLabel>
-                  </>
-                )}
-              </Toolbar>
-            )}
-          </>
-        )}
+                      });
+                    });
+                  }}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Caption>Durée de l'animation (secondes)</Caption>
+                <Input
+                  type="number"
+                  onChange={(event) => {
+                    const animationDuration = Number(event.target.value) * 1000;
+
+                    updateState((draft) => {
+                      draft.slides.forEach((slide) => {
+                        if (slide.id === currentSlide.id) {
+                          slide.animationDuration = animationDuration;
+                        }
+                      });
+                    });
+                  }}
+                  value={currentSlide.animationDuration / 1000}
+                  min="0"
+                  max="60"
+                />
+              </FormGroup>
+            </ToolbarSettings>
+          )}
+        </Toolbar>
       </Container>
     </ThemeProvider>
   );
