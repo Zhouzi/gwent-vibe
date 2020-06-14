@@ -1,226 +1,350 @@
 import * as React from "react";
-import { Draft } from "immer";
-import { useImmer } from "use-immer";
-import styled, { ThemeProvider } from "styled-components";
-import {
-  FiSettings,
-  FiPlay,
-  FiSquare,
-  FiSkipForward,
-  FiSkipBack,
-  FiRewind,
-} from "react-icons/fi";
+import styled, { ThemeProvider, css } from "styled-components";
 import { themeCSSVariables } from "design/theme";
-import {
-  GlobalStyle,
-  FireSparks,
-  IconButton,
-  Caption,
-  FormGroup,
-  Input,
-} from "design/components";
-import { AppState, createSlide, Slide } from "app/AppState";
-import { Scene } from "./Scene";
-import { InputFile } from "./InputFile";
-import { SettingsBlur } from "./SettingsBlur";
+import { GlobalStyle, FireSparks } from "design/components";
+import { Effect } from "app/AppState";
+import { load, applyEffect, getCSSFilter } from "app/operations";
+import shupe from "app/assets/shupe.jpg";
+import { Slideshow } from "./Slideshow";
+
+interface AppState {
+  effect: Effect | null;
+  countDown: number | null;
+  submitted: boolean;
+}
 
 const Container = styled.main`
-  display: flex;
   min-height: 100vh;
-
-  & > *:first-child {
-    flex: 1;
-  }
-
-  & > *:last-child {
-    position: relative;
-    z-index: 1;
-  }
-`;
-
-const Toolbar = styled.aside`
   display: flex;
-  background-color: rgba(0, 0, 0, 0.25);
-`;
-
-const ToolbarButtons = styled.ul`
-  padding: 0;
-  margin: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-`;
-
-const ToolbarButtonsItem = styled.li``;
-
-const ToolbarButtonsPagination = styled(Caption).attrs({ as: "li" })`
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  padding: 1rem;
+  position: relative;
+  z-index: 1;
 `;
 
-const ToolbarSettings = styled.div`
-  position: relative;
-  padding: 1rem;
-  min-width: 14rem;
+const Panel = styled.section`
+  max-width: 40rem;
+  width: 100%;
+  padding: 1.4rem;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 4px;
+`;
+
+const Heading = styled.h1`
+  font-family: Arvo, serif;
+  font-size: 2.4rem;
+  line-height: 1.2;
+  margin: 0 0 1rem 0;
+`;
+
+const Paragraph = styled.p`
+  margin: 0 0 0.4rem 0;
+`;
+
+const Settings = styled.div`
+  display: flex;
+  padding: 1rem 0;
+`;
+
+const SettingsPreview = styled.div``;
+
+const SettingsControls = styled.div`
+  flex: 1;
+  padding-left: 1rem;
+`;
+
+const Label = styled.label`
+  display: block;
+  width: 100%;
+  cursor: inherit;
+
+  & > input {
+    margin-right: 0.4rem;
+  }
+`;
+
+interface FormGroupProps {
+  active?: boolean;
+}
+
+const FormGroup = styled.div<FormGroupProps>`
+  cursor: pointer;
+  padding: 0.4rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  margin-bottom: 1px;
+
+  & > input {
+    width: 100%;
+  }
+
+  &:focus,
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  ${(props) =>
+    props.active &&
+    css`
+      cursor: auto;
+      background-color: rgba(255, 255, 255, 0.1);
+    `}
+`;
+
+const ControlsGroup = styled.div`
+  margin-bottom: 1rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const Caption = styled.div`
+  font-size: 0.8rem;
+  letter-spacing: 0.05rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
 `;
 
 export function App() {
-  const [state, updateState] = useImmer<AppState>({
-    expanded: false,
-    status: "initial",
-    slides: [createSlide()],
-    currentSlideIndex: 0,
-  });
-  const currentSlide = state.slides[state.currentSlideIndex];
-
-  const onChangeImage = React.useCallback(
-    (image: HTMLImageElement) => {
-      updateState((draft) => {
-        draft.slides.forEach((slide) => {
-          if (slide.id === currentSlide.id) {
-            slide.originalImage = image as Draft<HTMLImageElement>;
-            slide.image = image as Draft<HTMLImageElement>;
-          }
-        });
-      });
+  const [
+    originalImage,
+    setOriginalImage,
+  ] = React.useState<HTMLImageElement | null>(null);
+  const [image, setImage] = React.useState<HTMLImageElement | null>(null);
+  const [state, setState] = React.useState<AppState>({
+    effect: {
+      type: "blur",
+      blur: 20,
     },
-    [currentSlide.id, updateState]
-  );
+    countDown: 20000,
+    submitted: false,
+  });
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+
+    load(shupe, controller.signal).then((image) => setOriginalImage(image));
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (originalImage == null) {
+      return;
+    }
+
+    if (state.effect == null) {
+      setImage(originalImage);
+    } else {
+      setImage(applyEffect(originalImage, state.effect));
+    }
+  }, [originalImage, state.effect]);
 
   return (
     <ThemeProvider theme={themeCSSVariables}>
       <GlobalStyle />
       <FireSparks />
-      <Container>
-        <Scene
-          status={state.status}
-          slide={currentSlide}
-          onOver={() => {
-            updateState((draft) => {
-              draft.status = "over";
-            });
-          }}
-        />
-        <Toolbar>
-          <ToolbarButtons>
-            <ToolbarButtonsItem>
-              <IconButton
-                onClick={() => {
-                  updateState((draft) => {
-                    draft.expanded = !draft.expanded;
-                  });
-                }}
-                disabled={state.status !== "initial"}
-              >
-                <FiSettings />
-              </IconButton>
-            </ToolbarButtonsItem>
-            <ToolbarButtonsItem>
-              <IconButton
-                onClick={() => {
-                  updateState((draft) => {
-                    draft.status =
-                      draft.status === "initial" ? "playing" : "initial";
+      {image == null ? null : state.submitted ? (
+        <Slideshow effect={state.effect} countDown={state.countDown} />
+      ) : (
+        <Container>
+          <Panel>
+            <Heading>Gwent Vibe</Heading>
+            <Paragraph>
+              Cette application permet de présenter du contenu image avec une
+              ambiance Gwent sous la forme d'un diaporama.
+            </Paragraph>
+            <Paragraph>
+              Chaque diapositive est composée d'une image, à laquelle il est
+              possible d'appliquer un effet. Il est également possible de
+              configurer un compteur pour que l'image soit affichée au bout de
+              quelques secondes.
+            </Paragraph>
+            <Paragraph>
+              Idéal pour teaser une carte, des quizs, et autres mini jeux.
+            </Paragraph>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
 
-                    if (draft.status !== "initial") {
-                      draft.expanded = false;
+                setState((currentState) => ({
+                  ...currentState,
+                  submitted: true,
+                }));
+              }}
+            >
+              <Settings>
+                <SettingsPreview>
+                  <Caption>Prévisualisation</Caption>
+                  <img
+                    src={image.src}
+                    alt=""
+                    style={
+                      state.effect
+                        ? {
+                            filter: getCSSFilter(state.effect),
+                          }
+                        : {}
                     }
-                  });
-                }}
-                disabled={
-                  currentSlide.originalImage == null ||
-                  currentSlide.image == null
-                }
-              >
-                {state.status === "playing" && <FiSquare />}
-                {state.status === "over" && <FiRewind />}
-                {state.status === "initial" && <FiPlay />}
-              </IconButton>
-            </ToolbarButtonsItem>
-            <ToolbarButtonsItem>
-              <IconButton
-                onClick={() => {
-                  updateState((draft) => {
-                    if (draft.currentSlideIndex <= 0) {
-                      return;
-                    }
+                  />
+                </SettingsPreview>
+                <SettingsControls>
+                  <ControlsGroup>
+                    <Caption>Effets</Caption>
+                    <FormGroup active={state.effect?.type === "blur"}>
+                      <Label>
+                        <input
+                          type="radio"
+                          name="effect"
+                          onChange={() =>
+                            setState((currentState) => ({
+                              ...currentState,
+                              effect: {
+                                type: "blur",
+                                blur: 20,
+                              },
+                            }))
+                          }
+                          checked={state.effect?.type === "blur"}
+                        />{" "}
+                        Flou
+                      </Label>
+                      {state.effect?.type === "blur" && (
+                        <input
+                          type="range"
+                          min="0"
+                          max="200"
+                          step="1"
+                          onChange={(event) => {
+                            const blur = Number(event.target.value);
+                            setState((currentState) => ({
+                              ...currentState,
+                              effect: {
+                                type: "blur",
+                                blur,
+                              },
+                            }));
+                          }}
+                          value={state.effect.blur}
+                        />
+                      )}
+                    </FormGroup>
+                    <FormGroup active={state.effect?.type === "pixelate"}>
+                      <Label>
+                        <input
+                          type="radio"
+                          name="effect"
+                          onChange={() =>
+                            setState((currentState) => ({
+                              ...currentState,
+                              effect: {
+                                type: "pixelate",
+                                pixelate: 4,
+                              },
+                            }))
+                          }
+                          checked={state.effect?.type === "pixelate"}
+                        />{" "}
+                        Pixelisation
+                      </Label>
+                      {state.effect?.type === "pixelate" && (
+                        <input
+                          type="range"
+                          min="1"
+                          max="40"
+                          step="1"
+                          onChange={(event) => {
+                            const pixelate = Number(event.target.value);
+                            setState((currentState) => ({
+                              ...currentState,
+                              effect: {
+                                type: "pixelate",
+                                pixelate,
+                              },
+                            }));
+                          }}
+                          value={state.effect.pixelate}
+                        />
+                      )}
+                    </FormGroup>
+                    <FormGroup active={state.effect == null}>
+                      <Label>
+                        <input
+                          type="radio"
+                          name="effect"
+                          onChange={() =>
+                            setState((currentState) => ({
+                              ...currentState,
+                              effect: null,
+                            }))
+                          }
+                          checked={state.effect == null}
+                        />{" "}
+                        Pas d'effets
+                      </Label>
+                    </FormGroup>
+                  </ControlsGroup>
 
-                    draft.status = "initial";
-                    draft.currentSlideIndex -= 1;
-                  });
-                }}
-                disabled={state.currentSlideIndex <= 0}
-              >
-                <FiSkipBack />
-              </IconButton>
-            </ToolbarButtonsItem>
-            <ToolbarButtonsItem>
-              <IconButton
-                onClick={() => {
-                  updateState((draft) => {
-                    draft.status = "initial";
-                    draft.currentSlideIndex += 1;
-
-                    if (draft.currentSlideIndex >= draft.slides.length) {
-                      draft.slides.push(createSlide() as Draft<Slide>);
-                    }
-                  });
-                }}
-              >
-                <FiSkipForward />
-              </IconButton>
-            </ToolbarButtonsItem>
-            <ToolbarButtonsPagination>
-              {state.currentSlideIndex + 1}/{state.slides.length}
-            </ToolbarButtonsPagination>
-          </ToolbarButtons>
-          {state.expanded && (
-            <ToolbarSettings>
-              <FormGroup>
-                <Caption>Image</Caption>
-                <InputFile onChange={onChangeImage} />
-              </FormGroup>
-              <FormGroup>
-                <Caption>Effets</Caption>
-                <SettingsBlur
-                  effects={currentSlide.effects}
-                  onChange={(updateEffects) => {
-                    updateState((draft) => {
-                      draft.slides.forEach((slide) => {
-                        if (slide.id === currentSlide.id) {
-                          updateEffects(slide.effects);
-                        }
-                      });
-                    });
-                  }}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Caption>Durée de l'animation (secondes)</Caption>
-                <Input
-                  type="number"
-                  onChange={(event) => {
-                    const animationDuration = Number(event.target.value) * 1000;
-
-                    updateState((draft) => {
-                      draft.slides.forEach((slide) => {
-                        if (slide.id === currentSlide.id) {
-                          slide.animationDuration = animationDuration;
-                        }
-                      });
-                    });
-                  }}
-                  value={currentSlide.animationDuration / 1000}
-                  min="0"
-                  max="60"
-                />
-              </FormGroup>
-            </ToolbarSettings>
-          )}
-        </Toolbar>
-      </Container>
+                  <ControlsGroup>
+                    <Caption>Compteur</Caption>
+                    <FormGroup active={state.countDown != null}>
+                      <Label>
+                        <input
+                          type="radio"
+                          name="countDown"
+                          onChange={() =>
+                            setState((currentState) => ({
+                              ...currentState,
+                              countDown: 20000,
+                            }))
+                          }
+                          checked={state.countDown != null}
+                        />
+                        Afficher l'image originale au bout de quelques secondes
+                      </Label>
+                      {state.countDown != null && (
+                        <input
+                          type="number"
+                          min="1"
+                          onChange={(event) => {
+                            const countDown = Number(event.target.value) * 1000;
+                            setState((currentState) => ({
+                              ...currentState,
+                              countDown,
+                            }));
+                          }}
+                          value={state.countDown / 1000}
+                        />
+                      )}
+                    </FormGroup>
+                    <FormGroup active={state.countDown == null}>
+                      <Label>
+                        <input
+                          type="radio"
+                          name="countDown"
+                          onChange={() =>
+                            setState((currentState) => ({
+                              ...currentState,
+                              countDown: null,
+                            }))
+                          }
+                          checked={state.countDown == null}
+                        />
+                        Afficher l'image originale quand je le souhaiterai
+                      </Label>
+                    </FormGroup>
+                  </ControlsGroup>
+                  <button type="submit">Commencer</button>
+                </SettingsControls>
+              </Settings>
+            </form>
+          </Panel>
+        </Container>
+      )}
     </ThemeProvider>
   );
 }

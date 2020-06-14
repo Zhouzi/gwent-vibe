@@ -1,23 +1,23 @@
 import * as React from "react";
 import { useSpring, animated } from "react-spring";
-import { Slide, toCSSFilter, createSlide } from "app/AppState";
+import { Effect } from "app/AppState";
+import { getInitialCSSFilter, getCSSFilter } from "app/operations";
 
 interface ImageAnimatedProps {
-  slide: Slide;
-  onOver: () => void;
+  src: string;
+  effect: Effect;
+  countDown: number;
 }
 
-export function ImageAnimated({ slide, onOver }: ImageAnimatedProps) {
+export function ImageAnimated({ src, effect, countDown }: ImageAnimatedProps) {
   const style = useSpring({
-    onRest: onOver,
-    filter: toCSSFilter(createSlide().effects),
+    filter: getInitialCSSFilter(effect),
     from: {
-      filter: toCSSFilter(slide.effects),
+      filter: getCSSFilter(effect),
     },
     config: {
-      duration: slide.animationDuration,
+      duration: countDown,
     },
   });
-
-  return <animated.img src={slide.image!.src} alt="" style={style} />;
+  return <animated.img src={src} alt="" style={style} />;
 }
